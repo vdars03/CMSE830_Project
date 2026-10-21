@@ -58,7 +58,7 @@ The app checks missing values and duplicates, reports column types, and creates 
 
 ## AI use disclosure
 
-Generative AI (ChatGPT) assisted with drafting and refining Streamlit code, model-evaluation workflow, interface text, and project documentation. The student ran the application, checked the outputs and behavior, and remains responsible for verifying the analysis, interpreting the results, and reporting limitations. Edit this disclosure to accurately reflect your own use and verification.
+I used ChatGPT (OpenAI, GPT-6) to help write and debug Streamlit code, improve the app interface, organize the model evaluation process, and refine project documentation. I tested the application, reviewed the code, and checked the results to make sure everything worked correctly. I made the final decisions about data preparation, visualizations, model selection, and interpretation of results. All conclusions and limitations were reviewed and verified independently.
 
 ## Citation
 
