@@ -531,7 +531,7 @@ The Student Performance Explorer application is deployed using Streamlit Communi
 
 **Live Application:** http://darshanv830project.streamlit.app
 
-**GitHub Repository:** github.com/vdars03-CMSE830_Project
+**GitHub Repository:** https://github.com/vdars03/CMSE830_Project
 
 ### Deployment Process
 
