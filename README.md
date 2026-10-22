@@ -527,21 +527,20 @@ Ensure that `student-mat.csv` is located in the same folder as `app.py`.
 
 ## 16. Deployment
 
-The application can be deployed using Streamlit Community Cloud.
+The Student Performance Explorer application is deployed using Streamlit Community Cloud and hosted through a GitHub repository.
 
-Deployment steps:
+**Live Application:** http://darshanv830project.streamlit.app
 
-1. Upload the project files to a GitHub repository.
-2. Open https://share.streamlit.io/.
-3. Connect the GitHub repository.
-4. Select the appropriate branch.
-5. Set `app.py` as the main application file.
-6. Deploy the application.
-7. Verify that all pages, filters, visualizations, and regression models work.
+**GitHub Repository:** github.com/vdars03-CMSE830_Project
 
-**Live application:** Add the deployed Streamlit URL.
+### Deployment Process
 
-**GitHub repository:** Add the GitHub repository URL.
+1. Uploaded the project files to GitHub, including `app.py`, `student-mat.csv`, `requirements.txt`, and `README.md`.
+2. Connected the GitHub repository to Streamlit Community Cloud.
+3. Selected `app.py` as the main application file.
+4. Deployed the application and verified that all pages, interactive filters, visualizations, and regression models function correctly.
+
+The deployed application allows users to explore student performance data, examine statistical relationships, and compare predictive models directly through a web browser.
 
 ## 17. Reproducibility
 
