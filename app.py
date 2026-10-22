@@ -65,6 +65,26 @@ def correlation(data, col, label):
     st.metric(label, f'{r:.3f}' if pd.notna(r) else 'N/A')
 
 
+def group_insight(data, group, label):
+    t = data.groupby(group, observed=True)['G3'].agg(['count', 'mean']).dropna()
+    t = t[t['count'] >= 5]
+    if len(t) < 2:
+        st.caption('Interpretation: Too few groups have at least five students for a reliable descriptive comparison.')
+        return
+    hi, lo = t['mean'].idxmax(), t['mean'].idxmin()
+    diff = t.loc[hi, 'mean'] - t.loc[lo, 'mean']
+    st.markdown(f"**What the chart shows:** Among groups with at least five students, {label} **{hi}** has the highest average final grade ({t.loc[hi, 'mean']:.2f}/20), compared with **{lo}** ({t.loc[lo, 'mean']:.2f}/20), a difference of {diff:.2f} points. These are descriptive differences, not causal effects.")
+
+
+def correlation_insight(data, col):
+    r = data[col].corr(data['G3'], method='spearman') if data[col].nunique() > 1 and data['G3'].nunique() > 1 else np.nan
+    if pd.isna(r):
+        st.caption('Interpretation: The current selection has too little variation to calculate a correlation.')
+    else:
+        direction = 'positive' if r > 0 else 'negative' if r < 0 else 'approximately zero'
+        st.caption(f'Interpretation: Spearman ρ = {r:.3f} indicates a {direction} rank association in the selected students. Its magnitude describes association strength, not causation.')
+
+
 df = load_data()
 st.sidebar.title('🎓 Student Performance Explorer')
 page = st.sidebar.radio('Navigation', ['Home', 'Explore Data', 'Analysis & Modeling', 'Data Preparation', 'Limitations & Documentation'])
@@ -111,7 +131,8 @@ elif page == 'Explore Data':
             ax.set_ylabel('Students')
             st.pyplot(fig)
             plt.close(fig)
-            st.caption('Final grades are recorded on a 0–20 scale.')
+            st.caption('Why a histogram? It shows how frequently each grade occurs on the 0–20 scale, making clusters and unusually common scores easy to see.')
+            st.markdown(f"**What the chart shows:** The most frequent final grade in this selection is {d['G3'].mode().iloc[0]:g}; the median is {d['G3'].median():.2f}/20. These values describe only the currently selected students.")
         with tabs[1]:
             st.subheader('Study time and final grades')
             summary(d, 'studytime', 'Study-time category')
@@ -119,12 +140,18 @@ elif page == 'Explore Data':
             with c1: plot(d, 'studytime', 'bar', 'Average grade by study time', 'Study-time category')
             with c2: plot(d, 'studytime', 'box', 'Grade distribution by study time', 'Study-time category')
             correlation(d, 'studytime', 'Spearman correlation')
+            group_insight(d, 'studytime', 'study-time category')
+            correlation_insight(d, 'studytime')
+            st.caption('Why these plots? Bars compare group averages; boxplots reveal spread, medians, and outliers that averages can hide.')
             st.caption('1 = <2 hours; 2 = 2–5 hours; 3 = 5–10 hours; 4 = >10 hours per week.')
         with tabs[2]:
             st.subheader('Attendance and final grades')
             summary(d, 'absence_group', 'Absence group')
             plot(d, 'absence_group', 'box', 'Grade distribution by absences', 'Absences')
             correlation(d, 'absences', 'Spearman correlation')
+            group_insight(d, 'absence_group', 'absence group')
+            correlation_insight(d, 'absences')
+            st.caption('Why a boxplot? It compares grade distributions across absence ranges without implying absences caused the differences.')
         with tabs[3]:
             st.subheader('Previous class failures and final grades')
             summary(d, 'failures', 'Previous failures')
@@ -132,6 +159,9 @@ elif page == 'Explore Data':
             with c1: plot(d, 'failures', 'bar', 'Average grade by past failures', 'Previous failures')
             with c2: plot(d, 'failures', 'box', 'Grade distribution by past failures', 'Previous failures')
             correlation(d, 'failures', 'Spearman correlation')
+            group_insight(d, 'failures', 'previous-failure group')
+            correlation_insight(d, 'failures')
+            st.caption('Why both plots? Average-grade bars show group differences while boxplots show the variation within each group.')
         with tabs[4]:
             st.subheader('Family and school support')
             for col, label in [('famsup', 'Family educational support'), ('schoolsup', 'Extra school educational support')]:
@@ -140,6 +170,8 @@ elif page == 'Explore Data':
                 c1, c2 = st.columns(2)
                 with c1: plot(d, col, 'bar', 'Average grade', label)
                 with c2: plot(d, col, 'box', 'Grade distribution', label)
+                group_insight(d, col, label)
+            st.caption('Why these plots? Compare averages alongside within-group grade distributions. Support may be targeted toward students who are already struggling.')
             st.info('Students receiving support may already be struggling. Differences between groups cannot establish the effect of support.')
         with tabs[5]:
             st.subheader('Spearman correlation heatmap')
@@ -153,6 +185,11 @@ elif page == 'Explore Data':
             gr = cr['G3'].drop('G3').sort_values(key=abs, ascending=False).round(3).reset_index()
             gr.columns = ['Variable', 'Spearman correlation with G3']
             st.dataframe(gr, use_container_width=True, hide_index=True)
+            st.caption('Why a heatmap? A diverging color scale centered at zero makes positive and negative rank associations comparable. Each cell also displays its numerical value.')
+            top = gr.dropna(subset=['Spearman correlation with G3']).head(1)
+            if not top.empty:
+                v = top.iloc[0]
+                st.markdown(f"**What the chart shows:** **{v['Variable']}** has the strongest absolute Spearman association with final grade in this selection (ρ = {v['Spearman correlation with G3']:.3f}). This does not establish a causal relationship.")
             st.caption('G1 and G2 are previous grading-period results, not beginning-of-year information.')
         st.caption('All group differences and correlations are descriptive; they do not establish causation.')
 
@@ -173,6 +210,8 @@ elif page == 'Analysis & Modeling':
     st.subheader('Held-out test results')
     st.dataframe(mt.round(3), use_container_width=True, hide_index=True)
     st.caption('MAE and RMSE: lower is better. R²: higher is better; negative values are possible.')
+    a1, a2 = results[names[0]], results[names[1]]
+    st.markdown(f"**Model comparison:** Adding previous grades changes test MAE from **{a1['MAE']:.2f}** to **{a2['MAE']:.2f}** grade points and test R² from **{a1['R²']:.3f}** to **{a2['R²']:.3f}**. These are results from the same held-out students, not proof that grades cause later performance.")
     c1, c2 = st.columns(2)
     with c1:
         fig, ax = plt.subplots(figsize=(6, 4))
@@ -188,6 +227,7 @@ elif page == 'Analysis & Modeling':
         ax.set_title('Explained variation comparison')
         st.pyplot(fig)
         plt.close(fig)
+    st.caption('Why these bar charts? They directly compare the two models on the same test set; MAE expresses average prediction error in grade points, while R² summarizes explained variation.')
     st.subheader('Inspect one model')
     chosen = st.selectbox('Model', names)
     r = results[chosen]
@@ -210,7 +250,8 @@ elif page == 'Analysis & Modeling':
         ax.set_ylabel('Students')
         st.pyplot(fig)
         plt.close(fig)
-    st.caption('Predictions are not clipped to 0–20, so model errors remain visible.')
+    st.caption('Why these plots? Actual-versus-predicted points show closeness to the perfect-prediction diagonal; the residual histogram shows error direction and spread. Predictions are not clipped to 0–20, so model errors remain visible.')
+    st.markdown(f"**Selected model:** {chosen} has test MAE **{r['MAE']:.2f}**, RMSE **{r['RMSE']:.2f}**, and R² **{r['R²']:.3f}**. Look for points far from the diagonal and residuals far from zero to identify prediction errors.")
     st.divider()
     st.subheader('Five-fold cross-validation on training data')
     ct = pd.DataFrame([{
@@ -221,6 +262,7 @@ elif page == 'Analysis & Modeling':
         'Mean CV R²': r['cv']['test_R2'].mean()
     } for name, r in results.items()])
     st.dataframe(ct.round(3), use_container_width=True, hide_index=True)
+    st.caption('Cross-validation repeats evaluation across five training-data folds to show how model error varies with the validation sample; it does not use the held-out test set.')
     fig, ax = plt.subplots(figsize=(8, 4))
     for name, r in results.items():
         ax.plot(range(1, 6), -r['cv']['test_MAE'], marker='o', label=name)
@@ -279,4 +321,4 @@ elif page == 'Limitations & Documentation':
     st.subheader('Methodology')
     st.write('The app presents filtered exploratory analysis, descriptive engineered categories, two linear regression models, held-out evaluation, and training-only five-fold cross-validation.')
     st.subheader('Project documentation')
-    st.write('Repository link, deployment instructions, and AI-use disclosure will be finalized for submission.')
+    st.write('For setup, dependencies, reproducibility steps, and the AI-use disclosure, see the project README in the GitHub repository.')
